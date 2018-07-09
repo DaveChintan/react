@@ -5,7 +5,7 @@ var mdb = require("mongodb");
 //import { MongoClient, Db } from 'mongodb'
 var http = require("http");
 var express = require("express");
-var nunjucks = require('nunjucks')
+var nunjucks = require("nunjucks");
 var app = express();
 var path = require("path");
 var fs = require("fs");
@@ -14,15 +14,15 @@ var bodyParser = require("body-parser");
 var session = require("express-session");
 var passport = require("passport");
 var LocalStrategy = require("passport-local").Strategy;
-var FacebookStrategy = require('passport-facebook').Strategy;
-var FacebookStrategy = require('passport-facebook').Strategy;
-var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
+var FacebookStrategy = require("passport-facebook").Strategy;
+var FacebookStrategy = require("passport-facebook").Strategy;
+var GoogleStrategy = require("passport-google-oauth").OAuth2Strategy;
 var RedisStore = require("connect-redis")(session);
 
 var MONGODATABSE = require("./src/db/mongo");
 var REDISDATABSE = require("./src/db/redisdb");
-var userfunc = require('./src/models/user');
-var config = require('./src/config/config')
+var userfunc = require("./src/models/user");
+var config = require("./src/config/config");
 Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
   .then(response => {
     //console.log(response);
@@ -35,11 +35,11 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       var mongoClient = response[0];
       var redisClient = response[1];
       //app.set('mongoose', response[0][0]);
-      nunjucks.configure('views', {
+      nunjucks.configure("views", {
         autoescape: true,
         express: app
       });
-      app.set('mongoose', MONGODATABSE.database);
+      app.set("mongoose", MONGODATABSE.database);
       app.set("MONGODB", mongoClient);
       app.set("REDISDB", redisClient);
       var USER = userfunc(MONGODATABSE.database);
@@ -65,72 +65,114 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.use(passport.initialize({}));
       app.use(passport.session());
 
-      passport.serializeUser(function (user, done) {
+      passport.serializeUser(function(user, done) {
         done(null, user);
       });
-      passport.deserializeUser(function (user, done) {
+      passport.deserializeUser(function(user, done) {
         done(null, user);
       });
 
-      passport.use(new LocalStrategy(function (username, password, done) {
+      passport.use(
+        new LocalStrategy(function(username, password, done) {
+          let user = undefined;
+          if (username == "admin" && password == "admin") {
+            user = { id: 1, name: "chintan" };
+          }
+          if (!user) {
+            USER.findOne({ email: username }).then((err, doc) => {
+              if (err) {
+                console.log(err);
+                return done(null, false, { message: "Invalid credentials" });
+              } else if (!doc) {
+                return done(null, false, { message: "Invalid credentials" });
+              } else return done(null, doc);
+            });
+          } else {
+            return done(null, user);
+          }
+        })
+      );
 
-        let user = undefined;
-        if (username == 'admin' && password == 'admin') {
-          user = { 'id': 1, name: 'chintan' };
-        }
-        if (!user) {
-          USER.findOne({ email: username }).then((err, doc) => {
-            if (err) {
-              console.log(err);
-              return done(null, false, { message: 'Invalid credentials' });
-            }
-            else if (!doc) {
-              return done(null, false, { message: 'Invalid credentials' });
-            }
-            else
-              return done(null, doc);
-          });
-        } else {
-          return done(null, user);
-        }
-      }));
+      // passport.use(new FacebookStrategy({
+      //   clientID: config.PROVIDERS.FACEBOOK.CLIENT_ID,
+      //   clientSecret: config.PROVIDERS.FACEBOOK.CLIENT_SECRET,
+      //   callbackURL: config.PROVIDERS.FACEBOOK.REDIRECT_URL,
+      //   profileFields: ['id', 'displayName', 'emails',
+      //     'photos', 'gender', 'link', 'locale', 'name',
+      //     'timezone', 'updated_time', 'verified'],
+      //   passReqToCallback: true,
+      //   enableProof: true
+      // },
+      //   function (req, accessToken, refreshToken, profile, done) {
+      //     console.log(accessToken);
+      //     console.log(refreshToken);
+      //     console.log(profile);
+      //     done(null, profile);
+      //     // User.findOrCreate(..., function (err, user) {
+      //     //   if (err) { return done(err); }
+      //     //   done(null, user);
+      //     // });
+      //   }
+      // ));
 
-      passport.use(new FacebookStrategy({
-        clientID: config.PROVIDERS.FACEBOOK.CLIENT_ID,
-        clientSecret: config.PROVIDERS.FACEBOOK.CLIENT_SECRET,
-        callbackURL: config.PROVIDERS.FACEBOOK.REDIRECT_URL,
-        profileFields: ['id', 'displayName', 'emails',
-          'photos', 'gender', 'link', 'locale', 'name',
-          'timezone', 'updated_time', 'verified'],
-        passReqToCallback: true,
-        enableProof: true
-      },
-        function (req, accessToken, refreshToken, profile, done) {
-          console.log(accessToken);
-          console.log(refreshToken);
-          console.log(profile);
-          done(null, profile);
-          // User.findOrCreate(..., function (err, user) {
-          //   if (err) { return done(err); }
-          //   done(null, user);
-          // });
-        }
-      ));
+      passport.use(
+        new GoogleStrategy(
+          {
+            clientID: config.PROVIDERS.GOOGLE.CLIENT_ID,
+            clientSecret: config.PROVIDERS.GOOGLE.CLIENT_SECRET,
+            callbackURL: config.PROVIDERS.GOOGLE.REDIRECT_URL,
+            scope: [
+              "openid",
+              "profile",
+              "email",
+              "https://www.googleapis.com/auth/plus.profile.emails.read"
+            ],
+            passReqToCallback: true
+          },
+          function(req, accessToken, refreshToken, profile, done) {
+            USER.findOne({ email: req.body.email }, (err, doc) => {
+              if (err) {
+                done(err, null);
+              } else if (!doc) {
+                done(null, { exists: false, doc: null });
+              } else {
+                var payload;
+                if (doc.google_id == profile.id) {
+                  done(null, { exists: true });
+                } else {
+                  done(null, { exists: false, doc: doc });
+                }
+                USER.findOrCreate({ google_id: profile.id }, function(
+                  err,
+                  user
+                ) {
+                  return done(err, user);
+                });
 
-      passport.use(new GoogleStrategy({
-        clientID: config.PROVIDERS.GOOGLE.CLIENT_ID,
-        clientSecret: config.PROVIDERS.GOOGLE.CLIENT_SECRET,
-        callbackURL: config.PROVIDERS.GOOGLE.REDIRECT_URL,
-        'scope': ['openid', 'profile', 'email', 'https://www.googleapis.com/auth/plus.profile.emails.read']
-      },
-        function (accessToken, refreshToken, profile, done) {
-          User.findOrCreate({ googleId: profile.id }, function (err, user) {
-            return done(err, user);
-          });
-        }
-      ));
+                payload = { email: req.body.email, google_id: profile.id };
+                USER.findOne(payload, (err1, doc1) => {
+                  if (err1) done(err1, null);
+                  else {
+                  }
+                });
+              }
+            });
 
+            USER.userExists(payload, (err, result) => {
+              if (result == 1) {
+                res.render("account/signup.html", {
+                  errormessage: "Email already exists."
+                });
+              } else {
+              }
+            });
 
+            USER.findOrCreate({ google_id: profile.id }, function(err, user) {
+              return done(err, user);
+            });
+          }
+        )
+      );
 
       // app.use(cookieParser('chintan'));
       // app.use(session({ secret: 'chintan', name: 'Asp_NetSessionID', unset: 'destroy' }));
@@ -139,75 +181,163 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       //let db = client.db("test");
 
       function ensureAuthenticated(req, res, next) {
-        if (req.isAuthenticated())
-          return next();
+        if (req.isAuthenticated()) return next();
         else {
           if (req.xhr) {
-            res.json(401, 'UnAuthorized');
+            res.json(401, "UnAuthorized");
             res.end();
-          }
-          else {
-            res.redirect('/');
+          } else {
+            res.redirect("/");
           }
         }
         // Return error content: res.jsonp(...) or redirect: res.redirect('/login')
       }
 
-      app.all("/secret", ensureAuthenticated, function (req, res, next) {
+      app.all("/secret", ensureAuthenticated, function(req, res, next) {
         console.log("Accessing the secret section ...");
         next(); // pass control to the next handler
       });
 
-      app.get('/signup', function (req, res, next) {
-        res.render('account/signup.html');
+      app.get("/signup", function(req, res, next) {
+        res.render("account/signup.html");
       });
 
-      app.post('/signup', function (req, res, next) {
+      app.post("/signup", function(req, res, next) {
         var firstName = req.body.firstName;
         var lastName = req.body.lastName;
         var email = req.body.email;
-        var password= req.body.assword;
-        res.render('account/signup.html');
+        var password = req.body.assword;
+        USER.userExists({ email: email })
+          .then(response => {
+            if (response == 1)
+              res.render("account/signup.html", {
+                errormessage: "Email already exists."
+              });
+            else {
+              var payload = {
+                facebook_id: "",
+                google_id: "",
+                firstName: firstName,
+                middleName: "",
+                lastName: lastName,
+                role: "User",
+                email: email,
+                active: true,
+                password: password,
+                createdAt: new Date(),
+                modifiedAt: new Date()
+              };
+              var u = new USER(payload);
+              u.save(err => {
+                if (err)
+                  res.render("account/signup.html", {
+                    errormessage: err || "An error has been occurred."
+                  });
+                else
+                  res.render("account/signup.html", {
+                    errormessage: "created"
+                  });
+              });
+              // .catch(err => {
+              //   res.render('account/signup.html', {errormessage: err || 'An error has been occurred.'});
+              // });
+              // if('err' in result) {
+              //   return res.render('account/signup.html', {errormessage: result['err'] || 'An error has been occurred.'});
+              // }
+              // return res.render('account/signup.html', {errormessage: 'created'});
+            }
+          })
+          .catch(err => {
+            res.render("account/signup.html", {
+              errormessage: err || "An error has been occurred."
+            });
+          });
+        // var result = await USER.userExists(email);
+        // if('err' in result){
+        //   return res.render('account/signup.html', {errormessage: result['err'] || 'An error has been occurred.'});
+        // }
+        // var userCount = result['result'];
+        // if(userCount == 1) {
+        //   return res.render('account/signup.html', {errormessage: 'Email already exists.'});
+        // }
+        // var payload = {
+        //   facebook_id: '',
+        //   google_id: '',
+        //   firstName: firstName,
+        //   middleName: '',
+        //   lastName: lastName,
+        //   role: 'User',
+        //   email: email,
+        //   active: true,
+        //   password: password,
+        //   createdAt: new Date(),
+        //   modifiedAt: new Date(),
+        // }
+        // result = await USER.createUser(payload)
+        // if('err' in result) {
+        //   return res.render('account/signup.html', {errormessage: result['err'] || 'An error has been occurred.'});
+        // }
+        // return res.render('account/signup.html', {errormessage: 'created'});
+        // USER.userExists(email, function(err, result){
+        //   if(err){
+        //     res.render('account/signup.html', {errormessage: 'An error has been occurred.'});
+        //   }
+        //   else{
+        //     res.render('account/signup.html', {errormessage: 'Email already exists.'});
+        //   }
+
+        //   res.render('account/signup.html');
+        // });
       });
 
-      app.get('/signup/facebook', passport.authenticate('facebook'));
+      // app.get('/signup/facebook', passport.authenticate('facebook'));
 
-      app.get('/auth/facebook/callback', function (req, res, next) {
-        passport.authenticate('facebook', { authType: 'rerequest', 'scope': ['email'] }, function (err, user, info) {
-          if (err) { return next(err); }
-          if (!user) { return res.redirect('/'); }
-          req.logIn(user, function (err) {
-            if (err) { return next(err); }
-            return res.redirect('/index');
+      // app.get('/auth/facebook/callback', function (req, res, next) {
+      //   passport.authenticate('facebook', { authType: 'rerequest', 'scope': ['email'] }, function (err, user, info) {
+      //     if (err) { return next(err); }
+      //     if (!user) { return res.redirect('/'); }
+      //     req.logIn(user, function (err) {
+      //       if (err) { return next(err); }
+      //       return res.redirect('/index');
+      //     });
+      //   })(req, res, next);
+      // });
+
+      app.get("/signup/google", passport.authenticate("google"));
+
+      app.get("/auth/google/callback", function(req, res, next) {
+        passport.authenticate("google", function(err, user, info) {
+          if (err) {
+            return next(err);
+          }
+          if (!user) {
+            return res.redirect("/");
+          }
+          req.logIn(user, function(err) {
+            if (err) {
+              return next(err);
+            }
+            return res.redirect("/index");
           });
         })(req, res, next);
       });
 
-      app.get('/signup/google', passport.authenticate('google'));
-
-      app.get('/auth/google/callback', function (req, res, next) {
-        passport.authenticate('google', function (err, user, info) {
-          if (err) { return next(err); }
-          if (!user) { return res.redirect('/'); }
-          req.logIn(user, function (err) {
-            if (err) { return next(err); }
-            return res.redirect('/index');
-          });
-        })(req, res, next);
-      });
-
-      app.get("/", function (request, response) {
+      app.get("/", function(request, response) {
         // if (request.isAuthenticated()) {
         //   response.redirect('/');
         // }
-        //else 
+        //else
         {
           //var client = app.get("REDISDB");
           //client.set("HELLO", "HELLO");
           let session = request.session;
           let filePath = path.join(__dirname, "login.html");
-          var errormessage = ""
-          response.render('login.html', { errormessage: errormessage, email: '', password: '' });
+          var errormessage = "";
+          response.render("account/login.html", {
+            errormessage: errormessage,
+            email: "",
+            password: ""
+          });
           // fs.readFile(filePath, (err, data) => {
           //   response.writeHead(200, "OK", { "Content-Type": "text/html" });
           //   response.write(data);
@@ -216,25 +346,31 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         }
       });
 
-      app.post('/login', function (req, res, next) {
-        passport.authenticate('local', function (err, user, info) {
-          if (err) { return next(err); }
-          if (!user) {
-            var errormessage = 'invalid credentials';
-            // return res.redirect('/'); 
-            return res.render('login.html', { errormessage: errormessage });
+      app.post("/login", function(req, res, next) {
+        passport.authenticate("local", function(err, user, info) {
+          if (err) {
+            return next(err);
           }
-          req.logIn(user, function (err) {
-            if (err) { return next(err); }
-            return res.redirect('/index');
+          if (!user) {
+            var errormessage = "invalid credentials";
+            // return res.redirect('/');
+            return res.render("account/login.html", {
+              errormessage: errormessage
+            });
+          }
+          req.logIn(user, function(err) {
+            if (err) {
+              return next(err);
+            }
+            return res.redirect("/index");
           });
         })(req, res, next);
       });
 
-      app.post('/logout', function (req, res, next) {
+      app.post("/logout", function(req, res, next) {
         req.session.destroy();
         req.session.logout();
-        res.redirect('/');
+        res.redirect("/");
       });
 
       // app.get("/collections", async (req, res, next) => {
@@ -274,7 +410,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       //     response.write('HELLO');
       //     response.end();
       // });
-      process.on("SIGNINT", function () {
+      process.on("SIGNINT", function() {
         console.log("closing");
         client.close();
         console.log("closed");

@@ -7,7 +7,10 @@
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rimraf dist/**/*.js",
-    "build": "node_modules/.bin/gulp default"
+    "build": "node_modules/.bin/gulp default",
+    "b": "babel index.js --out-file build.js",
+    "w": "webpack"
+
   },
   "browserslist": [
     "> 1%",
@@ -104,6 +107,7 @@
     "@types/uuid": "^3.4.3",
     "@types/validatorjs": "^3.7.1",
     "awesome-typescript-loader": "^5.0.0",
+    "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
     "babel-loader": "^7.1.4",
     "babel-minify": "^0.4.3",
