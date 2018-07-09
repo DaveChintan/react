@@ -1,0 +1,23 @@
+"syntax-async-generators",
+            "transform-async-to-generator",
+            "transform-async-generator-functions",
+
+
+
+
+"transform-object-rest-spread",
+            {
+                "useBuildIns": false
+            },
+            "transform-async-generator-functions",
+            "transform-regenerator",
+            
+            "transform-object-assign",
+            "transform-es2015-typeof-symbol"
+        ],
+        [
+            "transform-es2015-for-of",
+            {
+                "loose": false
+            }
+        ]

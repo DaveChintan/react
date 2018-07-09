@@ -1,0 +1,21 @@
+{
+    "presets": [
+        [
+            "env",
+            {
+                "modules": false,
+                "useBuildIns": false,
+                "debug": true
+            }
+        ],
+        [
+            "react"
+        ]
+    ],
+    "plugins": [
+        [
+            
+            "transform-runtime", {"helpers": true, "polyfill":  true }
+        ],
+        "transform-object-rest-spread"
+    ]}
