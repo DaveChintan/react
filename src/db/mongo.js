@@ -9,7 +9,7 @@ module.exports = {
       mongoose.connect(config.DB.MONGO.URL)
       .catch(err => reject(err));
       var db = mongoose.connection;
-      db.on("error", err => reject(e));
+      db.on("error", err => reject(err));
       db.on("open", _ => resolve(db));
     });
   }

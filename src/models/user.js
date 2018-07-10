@@ -1,5 +1,5 @@
-var mongoose = require('mongoose');
-module.exports = function UserSchema() {
+//var mongoose = require('mongoose');
+module.exports = function UserSchema(mongoose) {
     var schema = new mongoose.Schema({
         //id: { tpye: String, required: true },
         facebook_id: String,
@@ -80,7 +80,8 @@ module.exports = function UserSchema() {
         //     cb(err,null);
         // });
     }
-    user.collection.drop();
+    
     let user = mongoose.model('User', schema);   
+    user.collection.drop();
     return user;
 }

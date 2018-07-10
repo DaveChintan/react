@@ -19,11 +19,13 @@ var FacebookStrategy = require("passport-facebook").Strategy;
 var FacebookStrategy = require("passport-facebook").Strategy;
 var GoogleStrategy = require("passport-google-oauth").OAuth2Strategy;
 var RedisStore = require("connect-redis")(session);
-
+var jwt = require('jsonwebtoken')
 var MONGODATABSE = require("./src/db/mongo");
 var REDISDATABSE = require("./src/db/redisdb");
 var userfunc = require("./src/models/user");
 var config = require("./src/config/config");
+var mailer = require('nodemailer');
+
 Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
   .then(response => {
     //console.log(response);
@@ -66,15 +68,15 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.use(passport.initialize({}));
       app.use(passport.session());
 
-      passport.serializeUser(function(user, done) {
+      passport.serializeUser(function (user, done) {
         done(null, user);
       });
-      passport.deserializeUser(function(user, done) {
+      passport.deserializeUser(function (user, done) {
         done(null, user);
       });
 
       passport.use(
-        new LocalStrategy(function(username, password, done) {
+        new LocalStrategy(function (username, password, done) {
           let user = undefined;
           if (username == "admin" && password == "admin") {
             user = { id: 1, name: "chintan" };
@@ -130,7 +132,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
             ],
             passReqToCallback: true
           },
-          function(req, accessToken, refreshToken, profile, done) {
+          function (req, accessToken, refreshToken, profile, done) {
             USER.findOne({ email: req.body.email }, (err, doc) => {
               if (err) {
                 done(err, null);
@@ -143,7 +145,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                 } else {
                   done(null, { exists: false, doc: doc });
                 }
-                USER.findOrCreate({ google_id: profile.id }, function(
+                USER.findOrCreate({ google_id: profile.id }, function (
                   err,
                   user
                 ) {
@@ -168,7 +170,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
               }
             });
 
-            USER.findOrCreate({ google_id: profile.id }, function(err, user) {
+            USER.findOrCreate({ google_id: profile.id }, function (err, user) {
               return done(err, user);
             });
           }
@@ -194,18 +196,18 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         // Return error content: res.jsonp(...) or redirect: res.redirect('/login')
       }
 
-      app.all("/secret", ensureAuthenticated, function(req, res, next) {
+      app.all("/secret", ensureAuthenticated, function (req, res, next) {
         console.log("Accessing the secret section ...");
         var url = req.protocol + "://" + req.get("host");
         req.params["root"] = url;
         next(); // pass control to the next handler
       });
 
-      app.get("/signup", function(req, res, next) {
+      app.get("/signup", function (req, res, next) {
         res.render("account/signup.html");
       });
 
-      app.post("/signup", function(req, res, next) {
+      app.post("/signup", function (req, res, next) {
         var firstName = req.body.firstName;
         var lastName = req.body.lastName;
         var email = req.body.email;
@@ -243,10 +245,38 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                     res.render("account/signup.html", {
                       errormessage: err || "An error has been occurred."
                     });
-                  else
-                    res.render("account/signup.html", {
-                      errormessage: "created"
+                  else {
+                    var payload = {
+                      header: { "alg": "RS256", "typ": "JWT" }
+                    }
+                    jwt.sign(payload, config.SMTP_PASSWORD, {algorithm: 'RS256'})
+                    var transporter = mailer.createTransport({
+                      service: 'gmail', auth: {
+                        type: "OAuth2",
+                        user: 'cndave84@gmail.com', serviceClient: config.SMTP_NAME, privateKey: config.SMTP_PASSWORD
+                      }
                     });
+                    transporter.on('token', token => {
+                      console.log('A new access token was generated');
+                      console.log('User: %s', token.user);
+                      console.log('Access Token: %s', token.accessToken);
+                      console.log('Expires: %s', new Date(token.expires));
+                    });
+                    transporter.sendMail({
+                      from: config.SMTP_NAME, to: u.email, subject: 'Account Verification',
+                      html: `<a href=${payload.activationLink}>Click here to activate</a>`
+                    }).then(value => {
+                      console.log(value);
+                      res.render("account/signup.html", {
+                        errormessage: "created"
+                      });
+                    }).catch(err => {
+                      res.render("account/signup.html", {
+                        errormessage: err || "An error has been occurred."
+                      });
+                    });
+
+                  }
                 });
             }
           })
@@ -272,7 +302,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
 
       app.get("/signup/google", passport.authenticate("google"));
 
-      app.get("/account/activate/:id", function(req, res, next) {
+      app.get("/account/activate/:id", function (req, res, next) {
         var id = req.param("id");
         USER.findOne({ _id: id })
           .then(doc => {
@@ -305,7 +335,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                         res.json("Success");
                         res.end();
                       })
-                      .catch(err => {});
+                      .catch(err => { });
                   });
                 }
               }
@@ -317,15 +347,15 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
           });
       });
 
-      app.get("/auth/google/callback", function(req, res, next) {
-        passport.authenticate("google", function(err, user, info) {
+      app.get("/auth/google/callback", function (req, res, next) {
+        passport.authenticate("google", function (err, user, info) {
           if (err) {
             return next(err);
           }
           if (!user) {
             return res.redirect("/");
           }
-          req.logIn(user, function(err) {
+          req.logIn(user, function (err) {
             if (err) {
               return next(err);
             }
@@ -334,7 +364,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         })(req, res, next);
       });
 
-      app.get("/", function(request, response) {
+      app.get("/", function (request, response) {
         // if (request.isAuthenticated()) {
         //   response.redirect('/');
         // }
@@ -358,8 +388,8 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         }
       });
 
-      app.post("/login", function(req, res, next) {
-        passport.authenticate("local", function(err, user, info) {
+      app.post("/login", function (req, res, next) {
+        passport.authenticate("local", function (err, user, info) {
           if (err) {
             return next(err);
           }
@@ -370,7 +400,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
               errormessage: errormessage
             });
           }
-          req.logIn(user, function(err) {
+          req.logIn(user, function (err) {
             if (err) {
               return next(err);
             }
@@ -379,7 +409,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         })(req, res, next);
       });
 
-      app.post("/logout", function(req, res, next) {
+      app.post("/logout", function (req, res, next) {
         req.session.destroy();
         req.session.logout();
         res.redirect("/");
@@ -401,7 +431,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       //     response.write('HELLO');
       //     response.end();
       // });
-      process.on("SIGNINT", function() {
+      process.on("SIGNINT", function () {
         console.log("closing");
         client.close();
         console.log("closed");

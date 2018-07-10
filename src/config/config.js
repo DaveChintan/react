@@ -21,7 +21,9 @@ var config = {
       REDIRECT_URL: process.env.GOOGLE_REDIRECT_URI
     }
   },
-  PORT: process.env.PORT || 8080
+  PORT: process.env.PORT || 8080,
+  SMTP_NAME: process.env.SMTP_NAME,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
 };
 
 // config.db.HOST = 'localhost';
