@@ -1,5 +1,5 @@
-//var mongoose = require('mongoose');
-module.exports = function UserSchema(mongoose) {
+var mongoose = require('mongoose');
+module.exports = function UserSchema() {
     var schema = new mongoose.Schema({
         //id: { tpye: String, required: true },
         facebook_id: String,
@@ -12,7 +12,10 @@ module.exports = function UserSchema(mongoose) {
         active: Boolean,
         password: String,
         createdAt: Date,
-        modifiedAt: Date
+        modifiedAt: Date,
+        activationLink: String,
+        activationLinkExpiredDate: Date,
+        activationLinkExpired: Boolean
     });
     schema.index({ email: 1 });
     // schema.pre('save', (doc) => { 
@@ -77,6 +80,7 @@ module.exports = function UserSchema(mongoose) {
         //     cb(err,null);
         // });
     }
+    user.collection.drop();
     let user = mongoose.model('User', schema);   
     return user;
 }

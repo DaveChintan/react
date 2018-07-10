@@ -9,6 +9,7 @@ var nunjucks = require("nunjucks");
 var app = express();
 var path = require("path");
 var fs = require("fs");
+var moment = require("moment");
 var cookieParser = require("cookie-parser");
 var bodyParser = require("body-parser");
 var session = require("express-session");
@@ -195,6 +196,8 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
 
       app.all("/secret", ensureAuthenticated, function(req, res, next) {
         console.log("Accessing the secret section ...");
+        var url = req.protocol + "://" + req.get("host");
+        req.params["root"] = url;
         next(); // pass control to the next handler
       });
 
@@ -222,29 +225,29 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                 lastName: lastName,
                 role: "User",
                 email: email,
-                active: true,
+                active: false,
                 password: password,
                 createdAt: new Date(),
-                modifiedAt: new Date()
+                modifiedAt: new Date(),
+                activationLink: req.param("root") + "/account/activate/",
+                activationLinkExpired: false,
+                activationLinkExpiredDate: moment()
+                  .add(30, "days")
+                  .format("MM/DD/YYYY")
               };
               var u = new USER(payload);
-              u.save(err => {
-                if (err)
-                  res.render("account/signup.html", {
-                    errormessage: err || "An error has been occurred."
-                  });
-                else
-                  res.render("account/signup.html", {
-                    errormessage: "created"
-                  });
-              });
-              // .catch(err => {
-              //   res.render('account/signup.html', {errormessage: err || 'An error has been occurred.'});
-              // });
-              // if('err' in result) {
-              //   return res.render('account/signup.html', {errormessage: result['err'] || 'An error has been occurred.'});
-              // }
-              // return res.render('account/signup.html', {errormessage: 'created'});
+              (payload.activationLink =
+                req.param("root") + "/account/activate/" + u._id),
+                u.save(err => {
+                  if (err)
+                    res.render("account/signup.html", {
+                      errormessage: err || "An error has been occurred."
+                    });
+                  else
+                    res.render("account/signup.html", {
+                      errormessage: "created"
+                    });
+                });
             }
           })
           .catch(err => {
@@ -252,42 +255,6 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
               errormessage: err || "An error has been occurred."
             });
           });
-        // var result = await USER.userExists(email);
-        // if('err' in result){
-        //   return res.render('account/signup.html', {errormessage: result['err'] || 'An error has been occurred.'});
-        // }
-        // var userCount = result['result'];
-        // if(userCount == 1) {
-        //   return res.render('account/signup.html', {errormessage: 'Email already exists.'});
-        // }
-        // var payload = {
-        //   facebook_id: '',
-        //   google_id: '',
-        //   firstName: firstName,
-        //   middleName: '',
-        //   lastName: lastName,
-        //   role: 'User',
-        //   email: email,
-        //   active: true,
-        //   password: password,
-        //   createdAt: new Date(),
-        //   modifiedAt: new Date(),
-        // }
-        // result = await USER.createUser(payload)
-        // if('err' in result) {
-        //   return res.render('account/signup.html', {errormessage: result['err'] || 'An error has been occurred.'});
-        // }
-        // return res.render('account/signup.html', {errormessage: 'created'});
-        // USER.userExists(email, function(err, result){
-        //   if(err){
-        //     res.render('account/signup.html', {errormessage: 'An error has been occurred.'});
-        //   }
-        //   else{
-        //     res.render('account/signup.html', {errormessage: 'Email already exists.'});
-        //   }
-
-        //   res.render('account/signup.html');
-        // });
       });
 
       // app.get('/signup/facebook', passport.authenticate('facebook'));
@@ -304,6 +271,51 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       // });
 
       app.get("/signup/google", passport.authenticate("google"));
+
+      app.get("/account/activate/:id", function(req, res, next) {
+        var id = req.param("id");
+        USER.findOne({ _id: id })
+          .then(doc => {
+            if (!doc) {
+              res.json("Invalid link");
+              res.end();
+            } else {
+              if (doc.activationLinkExpired) {
+                res.json("Link expired");
+                res.end();
+              } else {
+                var expdate = moment(
+                  doc.activationLinkExpiredDate,
+                  "MM/DD/YYYY"
+                );
+                var diff = moment().diff(expdate, "days", true);
+                if (diff <= 0) {
+                  res.json("Link expired");
+                  res.end();
+                } else {
+                  req.logIn(doc, err => {
+                    doc.modifiedAt = new Date();
+                    doc
+                      .update({
+                        modifiedAt: new Date(),
+                        activationLinkExpired: true,
+                        active: true
+                      })
+                      .then(_ => {
+                        res.json("Success");
+                        res.end();
+                      })
+                      .catch(err => {});
+                  });
+                }
+              }
+            }
+          })
+          .catch(err => {
+            res.json(error);
+            res.end();
+          });
+      });
 
       app.get("/auth/google/callback", function(req, res, next) {
         passport.authenticate("google", function(err, user, info) {
@@ -372,27 +384,6 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         req.session.logout();
         res.redirect("/");
       });
-
-      // app.get("/collections", async (req, res, next) => {
-      //   try {
-      //     let collection = await db.createCollection("users", { w: 1 });
-      //     await collection.insert({ id: 1 });
-      //     //res.json(await db.listCollections());
-      //     let response = await db.collections();
-      //     let cs = [];
-      //     response.forEach(r => {
-      //       console.log(r.collectionName);
-      //       cs.push(r.collectionName);
-      //     });
-      //     //let cursor = response[0].findOne();
-      //     //let count = await cursor.count()
-      //     //cursor.forEach(c => c);
-      //     //cursor.close();
-      //     res.json(cs);
-      //   } catch (error) {
-      //     next(error);
-      //   }
-      // });
 
       app.get("/download", (req, res) => {
         let filePath = path.join(__dirname, "tsconfig.json");
