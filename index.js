@@ -1,4 +1,5 @@
 var bluebird = require("bluebird");
+var axios = require('axios')
 //global.Promise = bluebird;
 //require("@babel/runtime/core-js/promise").default = require("bluebird");
 var mdb = require("mongodb");
@@ -82,7 +83,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
             user = { id: 1, name: "chintan" };
           }
           if (!user) {
-            USER.findOne({ email: username }).then((err, doc) => {
+            USER.findOne({ email: username }).then((doc, err) => {
               if (err) {
                 console.log(err);
                 return done(null, false, { message: "Invalid credentials" });
@@ -96,27 +97,42 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         })
       );
 
-      // passport.use(new FacebookStrategy({
-      //   clientID: config.PROVIDERS.FACEBOOK.CLIENT_ID,
-      //   clientSecret: config.PROVIDERS.FACEBOOK.CLIENT_SECRET,
-      //   callbackURL: config.PROVIDERS.FACEBOOK.REDIRECT_URL,
-      //   profileFields: ['id', 'displayName', 'emails',
-      //     'photos', 'gender', 'link', 'locale', 'name',
-      //     'timezone', 'updated_time', 'verified'],
-      //   passReqToCallback: true,
-      //   enableProof: true
-      // },
-      //   function (req, accessToken, refreshToken, profile, done) {
-      //     console.log(accessToken);
-      //     console.log(refreshToken);
-      //     console.log(profile);
-      //     done(null, profile);
-      //     // User.findOrCreate(..., function (err, user) {
-      //     //   if (err) { return done(err); }
-      //     //   done(null, user);
-      //     // });
-      //   }
-      // ));
+      passport.use(new FacebookStrategy({
+        clientID: config.PROVIDERS.FACEBOOK.CLIENT_ID,
+        clientSecret: config.PROVIDERS.FACEBOOK.CLIENT_SECRET,
+        callbackURL: config.PROVIDERS.FACEBOOK.REDIRECT_URL,
+        profileFields: ['id', 'displayName', 'email',
+          'photos', 'gender', 'link', 'locale', 'name',
+          'timezone', 'updated_time', 'verified'],
+        passReqToCallback: true,
+        enableProof: true
+      },
+        function (req, accessToken, refreshToken, profile, done) {
+          var url = '';
+          if (profile.id)
+            url = `https://graph.facebook.com/v3.0/${profile.id}`;
+          else
+            url = `https://graph.facebook.com/v3.0/${profile._id}`;
+          axios.get(url, { 'access_token': accessToken }).then(hellofb => {
+
+            console.log(accessToken);
+            console.log(refreshToken);
+            console.log(profile);
+            done(null, profile);
+          }).catch(hellofb => { 
+            console.log(accessToken);
+            console.log(refreshToken);
+            console.log(profile);
+            done(null, profile);
+          });
+
+          
+          // User.findOrCreate(..., function (err, user) {
+          //   if (err) { return done(err); }
+          //   done(null, user);
+          // });
+        }
+      ));
 
       passport.use(
         new GoogleStrategy(
@@ -161,18 +177,18 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
               }
             });
 
-            USER.userExists(payload, (err, result) => {
-              if (result == 1) {
-                res.render("account/signup.html", {
-                  errormessage: "Email already exists."
-                });
-              } else {
-              }
-            });
+            // USER.userExists(payload, (err, result) => {
+            //   if (result == 1) {
+            //     res.render("account/signup.html", {
+            //       errormessage: "Email already exists."
+            //     });
+            //   } else {
+            //   }
+            // });
 
-            USER.findOrCreate({ google_id: profile.id }, function (err, user) {
-              return done(err, user);
-            });
+            // USER.findOrCreate({ google_id: profile.id }, function (err, user) {
+            //   return done(err, user);
+            // });
           }
         )
       );
@@ -196,10 +212,10 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         // Return error content: res.jsonp(...) or redirect: res.redirect('/login')
       }
 
-      app.all("/secret", ensureAuthenticated, function (req, res, next) {
+      app.all("*", function (req, res, next) {
         console.log("Accessing the secret section ...");
         var url = req.protocol + "://" + req.get("host");
-        req.params["root"] = url;
+        res.locals.root = url;
         next(); // pass control to the next handler
       });
 
@@ -239,21 +255,45 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
               };
               var u = new USER(payload);
               (payload.activationLink =
-                req.param("root") + "/account/activate/" + u._id),
+                res.locals.root + "/account/activate/" + u._id.toString()),
                 u.save(err => {
                   if (err)
                     res.render("account/signup.html", {
                       errormessage: err || "An error has been occurred."
                     });
                   else {
-                    var payload = {
-                      header: { "alg": "RS256", "typ": "JWT" }
-                    }
-                    jwt.sign(payload, config.SMTP_PASSWORD, {algorithm: 'RS256'})
-                    var transporter = mailer.createTransport({
-                      service: 'gmail', auth: {
-                        type: "OAuth2",
-                        user: 'cndave84@gmail.com', serviceClient: config.SMTP_NAME, privateKey: config.SMTP_PASSWORD
+                    const transporter = mailer.createTransport({
+                      host: 'smtp.gmail.com', // hostname
+                      port: 465, // secure:true for port 465, secure:false for port 587
+                      secure: true, // port for secure SMTP
+                      auth: {
+                        user: config.PROVIDERS.GOOGLE.USER_ID,
+                        pass: config.PROVIDERS.GOOGLE.PASSWORD
+                      }
+                    });
+                    // var transporter = mailer.createTransport({
+                    //   debug: true,
+                    //   host: 'smtp.sendgrid.net',
+                    //   port: 465,
+                    //   secure: true,
+                    //   auth: {
+                    //     user: 'apikey',
+                    //     pass: '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'
+                    //   }
+                    // });
+
+                    transporter.verify((error, success) => {
+                      if (error) {
+                        //transporter.close();
+                        res.render("account/signup.html", {
+                          errormessage: error
+                        });
+                      } else {
+                        // if (error) {
+                        //   res.render("account/signup.html", {
+                        //     errormessage: 'CREATED'
+                        //   });
+                        // }
                       }
                     });
                     transporter.on('token', token => {
@@ -263,14 +303,16 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                       console.log('Expires: %s', new Date(token.expires));
                     });
                     transporter.sendMail({
-                      from: config.SMTP_NAME, to: u.email, subject: 'Account Verification',
+                      from: "cndave84@gmail.com", to: u.email, subject: 'Account Verification',
                       html: `<a href=${payload.activationLink}>Click here to activate</a>`
                     }).then(value => {
+                      transporter.close();
                       console.log(value);
                       res.render("account/signup.html", {
                         errormessage: "created"
                       });
                     }).catch(err => {
+                      transporter.close();
                       res.render("account/signup.html", {
                         errormessage: err || "An error has been occurred."
                       });
@@ -287,18 +329,18 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
           });
       });
 
-      // app.get('/signup/facebook', passport.authenticate('facebook'));
+      app.get('/signup/facebook', passport.authenticate('facebook'));
 
-      // app.get('/auth/facebook/callback', function (req, res, next) {
-      //   passport.authenticate('facebook', { authType: 'rerequest', 'scope': ['email'] }, function (err, user, info) {
-      //     if (err) { return next(err); }
-      //     if (!user) { return res.redirect('/'); }
-      //     req.logIn(user, function (err) {
-      //       if (err) { return next(err); }
-      //       return res.redirect('/index');
-      //     });
-      //   })(req, res, next);
-      // });
+      app.get('/auth/facebook/callback', function (req, res, next) {
+        passport.authenticate('facebook', { 'scope': ['public_profile', 'email'] }, function (err, user, info) {
+          if (err) { return next(err); }
+          if (!user) { return res.redirect('/'); }
+          req.logIn(user, function (err) {
+            if (err) { return next(err); }
+            return res.redirect('/index');
+          });
+        })(req, res, next);
+      });
 
       app.get("/signup/google", passport.authenticate("google"));
 
@@ -318,24 +360,26 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                   doc.activationLinkExpiredDate,
                   "MM/DD/YYYY"
                 );
-                var diff = moment().diff(expdate, "days", true);
+                var diff = expdate.diff(moment(), "days", true);
                 if (diff <= 0) {
                   res.json("Link expired");
                   res.end();
                 } else {
                   req.logIn(doc, err => {
                     doc.modifiedAt = new Date();
+                    doc.modifiedAt = new Date();
+                    doc.activationLinkExpired = true;
+                    doc.active = true;
                     doc
-                      .update({
-                        modifiedAt: new Date(),
-                        activationLinkExpired: true,
-                        active: true
-                      })
+                      .save()
                       .then(_ => {
                         res.json("Success");
                         res.end();
                       })
-                      .catch(err => { });
+                      .catch(err => {
+                        res.json(err);
+                        res.end();
+                      });
                   });
                 }
               }

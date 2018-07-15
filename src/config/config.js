@@ -18,7 +18,9 @@ var config = {
     GOOGLE: {
       CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-      REDIRECT_URL: process.env.GOOGLE_REDIRECT_URI
+      REDIRECT_URL: process.env.GOOGLE_REDIRECT_URI,
+      USER_ID: process.env.GOOGLE_USERID,
+      PASSWORD: process.env.GOOGLE_PASSWORD
     }
   },
   PORT: process.env.PORT || 8080,
