@@ -2,11 +2,11 @@
 module.exports = function UserSchema(mongoose) {
     var schema = new mongoose.Schema({
         //id: { tpye: String, required: true },
-        facebook_id: String,
-        google_id: String,
+        provider_id: { type: String, required: false },
+        provider_type: { type: String, enum: ['facebook', 'google'], required: false },
         firstName: String,
         middleName: String,
-        lastName: String,
+        displayName: String,
         role: { type: String, enum: ['Admin', 'User'] },
         email: { type: String, required: true },
         active: Boolean,
@@ -28,14 +28,14 @@ module.exports = function UserSchema(mongoose) {
     schema.pre('update', (doc) => { }, err => {
         this.update({}, { $set: { modifiedAt: new Date() } });
     });
-    
-    schema.statics.findByEmail = function(email, cb) {
-        user.findOne({email : email}).then(a => {
+
+    schema.statics.findByEmail = function (email, cb) {
+        user.findOne({ email: email }).then(a => {
             console.log(a);
-            cb(null,a);
+            cb(null, a);
         }).catch(err => {
             console.log(err);
-            cb(err,null);
+            cb(err, null);
         });
     }
     schema.statics.userExists = (payload, cb) => {
@@ -80,8 +80,8 @@ module.exports = function UserSchema(mongoose) {
         //     cb(err,null);
         // });
     }
-    
-    let user = mongoose.model('User', schema);   
+
+    let user = mongoose.model('User', schema);
     user.collection.drop();
     return user;
 }

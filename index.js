@@ -26,6 +26,8 @@ var REDISDATABSE = require("./src/db/redisdb");
 var userfunc = require("./src/models/user");
 var config = require("./src/config/config");
 var mailer = require('nodemailer');
+var sh = require('./src/helpers/sessionhelper');
+var rl = require("redlock");
 
 Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
   .then(response => {
@@ -46,6 +48,9 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.set("mongoose", MONGODATABSE.database);
       app.set("MONGODB", mongoClient);
       app.set("REDISDB", redisClient);
+      var oLock = new rl(redisClient);
+      var sessionLock = sh(oLock);
+      app.set('sessionlock', sessionLock);
       var USER = userfunc(MONGODATABSE.database);
       app.use(express.static("public"));
       app.use(cookieParser("heroku"));
@@ -110,23 +115,21 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         function (req, accessToken, refreshToken, profile, done) {
           var url = '';
           if (profile.id)
-            url = `https://graph.facebook.com/v3.0/${profile.id}`;
+            url = `https://graph.facebook.com/v3.0/${profile.id}?access_token=${accessToken}&fields=first_name,last_name,email,middle_name,name`;
           else
-            url = `https://graph.facebook.com/v3.0/${profile._id}`;
+            url = `https://graph.facebook.com/v3.0/${profile._id}?access_token=${accessToken}`;
           axios.get(url, { 'access_token': accessToken }).then(hellofb => {
-
             console.log(accessToken);
             console.log(refreshToken);
             console.log(profile);
             done(null, profile);
-          }).catch(hellofb => { 
+          }).catch(hellofb => {
             console.log(accessToken);
             console.log(refreshToken);
             console.log(profile);
             done(null, profile);
           });
 
-          
           // User.findOrCreate(..., function (err, user) {
           //   if (err) { return done(err); }
           //   done(null, user);
@@ -149,58 +152,86 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
             passReqToCallback: true
           },
           function (req, accessToken, refreshToken, profile, done) {
-            USER.findOne({ email: req.body.email }, (err, doc) => {
-              if (err) {
-                done(err, null);
-              } else if (!doc) {
-                done(null, { exists: false, doc: null });
-              } else {
-                var payload;
-                if (doc.google_id == profile.id) {
-                  done(null, { exists: true });
+            if (!profile.emails || !Array.isArray(profile.emails) || profile.emails.length == 0) {
+              //raise error
+              done('Email not returned', null);
+            }
+            else {
+              var strEmail = profile.emails[0].value;
+              var id = profile.id;
+              var firstName = profile.name ? profile.name.familyName || '' : profile.name.displayName || '';
+              var lastName = ''
+              var displayName = profile.displayName || '';
+              USER.findOne({ email: strEmail }, (err, doc) => {
+                if (err) {
+                  done(err, null);
+                } else if (doc) {
+                  done(null, { exists: true, doc: null });
                 } else {
-                  done(null, { exists: false, doc: doc });
+                  var payload;
+                  var payload = {
+                    provider_id: id,
+                    provider_type: "google",
+                    firstName: firstName,
+                    displayName: displayName,
+                    lastName: lastName,
+                    role: "User",
+                    email: strEmail,
+                    active: false,
+                    password: '',
+                    createdAt: new Date(),
+                    modifiedAt: new Date(),
+                    activationLinkExpired: false,
+                    activationLinkExpiredDate: moment()
+                      .add(30, "days")
+                      .format("MM/DD/YYYY")
+                  };
+                  var u = new USER(payload);
+                  (payload.activationLink =
+                    req.locals.root + "/account/activate/" + u._id.toString()),
+                    u.save(err => {
+                      if (err)
+                        done(err, null);
+                      else {
+                        const transporter = mailer.createTransport({
+                          host: 'smtp.gmail.com', // hostname
+                          port: 465, // secure:true for port 465, secure:false for port 587
+                          secure: true, // port for secure SMTP
+                          auth: {
+                            user: config.PROVIDERS.GOOGLE.USER_ID,
+                            pass: config.PROVIDERS.GOOGLE.PASSWORD
+                          }
+                        });
+                        transporter.verify((error, success) => {
+                          if (error) {
+                            done(error, null);
+                          }
+                        });
+                        transporter.sendMail({
+                          from: "cndave84@gmail.com", to: strEmail, subject: 'Account Verification',
+                          html: `<a href=${payload.activationLink}>Click here to activate</a>`
+                        }).then(value => {
+                          transporter.close();
+                          console.log(value);
+                          done(null, { exists: false, doc: u });
+                        }).catch(err => {
+                          transporter.close();
+                          done(err, null);
+                        });
+                      }
+                    });
                 }
-                USER.findOrCreate({ google_id: profile.id }, function (
-                  err,
-                  user
-                ) {
-                  return done(err, user);
-                });
-
-                payload = { email: req.body.email, google_id: profile.id };
-                USER.findOne(payload, (err1, doc1) => {
-                  if (err1) done(err1, null);
-                  else {
-                  }
-                });
-              }
-            });
-
-            // USER.userExists(payload, (err, result) => {
-            //   if (result == 1) {
-            //     res.render("account/signup.html", {
-            //       errormessage: "Email already exists."
-            //     });
-            //   } else {
-            //   }
-            // });
-
-            // USER.findOrCreate({ google_id: profile.id }, function (err, user) {
-            //   return done(err, user);
-            // });
+              });
+            }
           }
         )
-      );
-
-      // app.use(cookieParser('chintan'));
-      // app.use(session({ secret: 'chintan', name: 'Asp_NetSessionID', unset: 'destroy' }));
-      // app.use(bodyParser());
-
-      //let db = client.db("test");
+      )
 
       function ensureAuthenticated(req, res, next) {
-        if (req.isAuthenticated()) return next();
+        if (req.isAuthenticated()) {
+
+          return next();
+        }
         else {
           if (req.xhr) {
             res.json(401, "UnAuthorized");
@@ -209,12 +240,22 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
             res.redirect("/");
           }
         }
-        // Return error content: res.jsonp(...) or redirect: res.redirect('/login')
       }
 
       app.all("*", function (req, res, next) {
+        var ssid = req.sessionID;
+        var lock = req.app.get('sessionlock');
+        lock.Get(req, ssid).then(hello => { 
+          console.log(hello);
+        }).catch(err => { 
+          console.log(err);
+        });
+
         console.log("Accessing the secret section ...");
         var url = req.protocol + "://" + req.get("host");
+        if (!req.locals)
+          req.locals = {};
+        req.locals.root = url;
         res.locals.root = url;
         next(); // pass control to the next handler
       });
@@ -236,10 +277,10 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
               });
             else {
               var payload = {
-                facebook_id: "",
-                google_id: "",
+                provider_id: "",
+                provider_type: "",
                 firstName: firstName,
-                middleName: "",
+                displayName: "",
                 lastName: lastName,
                 role: "User",
                 email: email,
@@ -394,17 +435,25 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.get("/auth/google/callback", function (req, res, next) {
         passport.authenticate("google", function (err, user, info) {
           if (err) {
-            return next(err);
+            res.render("account/login.html", {
+              errormessage: err
+            });
           }
-          if (!user) {
-            return res.redirect("/");
+          else if (user.exists) {
+            res.render("account/login.html", {
+              errormessage: 'Email already exists'
+            });
           }
-          req.logIn(user, function (err) {
-            if (err) {
-              return next(err);
-            }
-            return res.redirect("/index");
-          });
+          else {
+            req.logIn(user.doc, function (err) {
+              if (err) {
+                res.render("account/login.html", {
+                  errormessage: err
+                });
+              }
+              return res.redirect("/index");
+            });
+          }
         })(req, res, next);
       });
 
