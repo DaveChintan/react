@@ -48,7 +48,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.set("mongoose", MONGODATABSE.database);
       app.set("MONGODB", mongoClient);
       app.set("REDISDB", redisClient);
-      var oLock = new rl(redisClient);
+      var oLock = new rl([redisClient]);
       var sessionLock = sh(oLock);
       app.set('sessionlock', sessionLock);
       var USER = userfunc(MONGODATABSE.database);
@@ -247,6 +247,8 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         var lock = req.app.get('sessionlock');
         lock.Get(req, ssid).then(hello => { 
           console.log(hello);
+          if(!hello)
+            lock.Set(req, ssid, ssid);
         }).catch(err => { 
           console.log(err);
         });

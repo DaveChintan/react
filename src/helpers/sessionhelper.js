@@ -33,12 +33,22 @@ function SessionHelper(lck) {
     },
 
     Get: (req, key, timeOut) => {
-      if (!req.session) return null;
-      using(this._lck.disposer(key, timeOut || 1000, err => console.log(err)), inner => {
-        var value = req.session[key];
-        inner.unlock();
-        return Promise.resolve(value);
-      })
+      return new Promise((resolve, reject) => {
+        if (!req.session)
+          resolve(null);
+        else {
+          try {
+            using(this._lck.disposer(key, timeOut || 1000, err => reject(err)), inner => {
+              var value = req.session[key];
+              inner.unlock();
+              resolve(value);
+            })
+          }
+          catch(err) {
+            reject(err);
+          }
+        }
+      });
     }
   }
 }
