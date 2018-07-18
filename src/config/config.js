@@ -26,6 +26,7 @@ var config = {
   PORT: process.env.PORT || 8080,
   SMTP_NAME: process.env.SMTP_NAME,
   SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+  ENCRYPT_KEY: process.env.ENCRYPT_KEY
 };
 
 // config.db.HOST = 'localhost';

@@ -28,6 +28,9 @@ var config = require("./src/config/config");
 var mailer = require('nodemailer');
 var sh = require('./src/helpers/sessionhelper');
 var rl = require("redlock");
+var compression = require('compression');
+var favicon = require('serve-favicon');
+var csrf = require('csurf');
 
 Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
   .then(response => {
@@ -53,7 +56,15 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.set('sessionlock', sessionLock);
       var USER = userfunc(MONGODATABSE.database);
       app.use(express.static("public"));
+      app.use(favicon(path.join(__dirname, 'public', 'images', 'icons', 'favicon.ico')));
+      app.use(compression());
       app.use(cookieParser("heroku"));
+      app.use(csrf({
+        cookie: true, sessionKey: 'heroku', value: req => {
+          var value = req.cookies['XSRF-TOKEN'];
+          return value;
+        }
+      }));
       app.use(bodyParser.urlencoded({ extended: true }));
       app.use(bodyParser.json());
       var options = {
@@ -243,17 +254,23 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       }
 
       app.all("*", function (req, res, next) {
-        var ssid = req.sessionID;
-        var lock = req.app.get('sessionlock');
-        lock.Get(req, ssid).then(hello => { 
-          console.log(hello);
-          if(!hello)
-            lock.Set(req, ssid, ssid);
-        }).catch(err => { 
-          console.log(err);
-        });
 
-        console.log("Accessing the secret section ...");
+        var token = req.csrfToken();
+        res.cookie('XSRF-TOKEN', token);
+        res.locals.csrfToken = token;
+        
+
+        // var ssid = req.sessionID;
+        // var lock = req.app.get('sessionlock');
+        // lock.Get(req, ssid).then(hello => {
+        //   console.log(hello);
+        //   if (!hello)
+        //     lock.Set(req, ssid, ssid);
+        // }).catch(err => {
+        //   console.log(err);
+        // });
+
+        // console.log("Accessing the secret section ...");
         var url = req.protocol + "://" + req.get("host");
         if (!req.locals)
           req.locals = {};
