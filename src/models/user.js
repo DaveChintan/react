@@ -38,6 +38,25 @@ module.exports = function UserSchema(mongoose) {
             cb(err, null);
         });
     }
+
+    schema.statics.GetActive = function (payload) {
+        this.find(payload).select({ active: true }).exec()
+            .then(docs => docs.map(d => d.toObject())).catch(err => new Error(err));
+    }
+
+    schema.statics.GetAll = function (payload, projection) {
+        return new Promise((resolve, reject) => {
+            this.find(payload, projection, (err, res) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve(res.map(d => d.toObject()));
+                // .then(docs => docs.map(d => d.toObject())).catch(err => new Error(err));
+            });
+        });
+
+    }
+
     schema.statics.userExists = (payload, cb) => {
         // return new Promise((resolve, reject) => {
         //     try{

@@ -253,7 +253,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         }
       }
 
-      app.options("/*", function(req, res, next) {
+      app.options("/*", function (req, res, next) {
         var origin = req.headers['Origin'];
         origin = origin || '*';
         res.header('Access-Control-Allow-Origin', origin);
@@ -267,7 +267,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         var token = req.csrfToken();
         res.cookie('XSRF-TOKEN', token);
         res.locals.csrfToken = token;
-        
+
 
         // var ssid = req.sessionID;
         // var lock = req.app.get('sessionlock');
@@ -540,6 +540,14 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         let filePath = path.join(__dirname, "tsconfig.json");
         res.attachment("hello.json");
         res.end();
+      });
+
+      app.get('/users', function (req, res, next) {
+        USER.GetAll().then(users => {
+          res.render('admin/users.html', { users: users })
+        }).catch(err => {
+          res.sendStatus(200)
+        });
       });
 
       var port = process.env.PORT || 8080;

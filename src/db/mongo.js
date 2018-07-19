@@ -1,6 +1,10 @@
 //@ts-nocheck
+var bluebird = require('bluebird')
 var config = require("../config/config");
 var mongoose = require("mongoose");
+mongoose.Promise = bluebird;
+
+
 
 module.exports = {
   database: mongoose,
