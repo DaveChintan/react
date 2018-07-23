@@ -28,10 +28,11 @@ var config = require("./src/config/config");
 var mailer = require('nodemailer');
 var sh = require('./src/helpers/sessionhelper');
 var rl = require("redlock");
+var morgan = require('morgan')
 var compression = require('compression');
 var favicon = require('serve-favicon');
 var csrf = require('csurf');
-
+var encrypt = require('./src/helpers/encrypthelper');
 Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
   .then(response => {
     //console.log(response);
@@ -86,7 +87,13 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
       app.use(passport.session());
 
       passport.serializeUser(function (user, done) {
-        done(null, user);
+        var userSchema = {};
+        userSchema.email = user.email;
+        userSchema.firstName = user.firstName;
+        userSchema.middleName = user.middleName;
+        userSchema.displayName = user.displayName;
+        userSchema.role = user.role;
+        done(null, userSchema);
       });
       passport.deserializeUser(function (user, done) {
         done(null, user);
@@ -96,10 +103,11 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         new LocalStrategy(function (username, password, done) {
           let user = undefined;
           if (username == "admin" && password == "admin") {
-            user = { id: 1, name: "chintan" };
+            user = { id: 1, firstName: "chintan", middleName: "", role: 'User', displayName: 'Admin' };
           }
           if (!user) {
-            USER.findOne({ email: username }).then((doc, err) => {
+            var encryptedPassword = encrypt.encrypt(password)
+            USER.findOne({ email: username, password: encryptedPassword }).then((doc, err) => {
               if (err) {
                 console.log(err);
                 return done(null, false, { message: "Invalid credentials" });
@@ -130,6 +138,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
           else
             url = `https://graph.facebook.com/v3.0/${profile._id}?access_token=${accessToken}`;
           axios.get(url, { 'access_token': accessToken }).then(hellofb => {
+            USER.findOne({ email: profile })
             console.log(accessToken);
             console.log(refreshToken);
             console.log(profile);
@@ -267,19 +276,6 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         var token = req.csrfToken();
         res.cookie('XSRF-TOKEN', token);
         res.locals.csrfToken = token;
-
-
-        // var ssid = req.sessionID;
-        // var lock = req.app.get('sessionlock');
-        // lock.Get(req, ssid).then(hello => {
-        //   console.log(hello);
-        //   if (!hello)
-        //     lock.Set(req, ssid, ssid);
-        // }).catch(err => {
-        //   console.log(err);
-        // });
-
-        // console.log("Accessing the secret section ...");
         var url = req.protocol + "://" + req.get("host");
         if (!req.locals)
           req.locals = {};
@@ -296,7 +292,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         var firstName = req.body.firstName;
         var lastName = req.body.lastName;
         var email = req.body.email;
-        var password = req.body.assword;
+        var password = req.body.password;
         USER.userExists({ email: email })
           .then(response => {
             if (response == 1)
@@ -306,14 +302,14 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
             else {
               var payload = {
                 provider_id: "",
-                provider_type: "",
+                provider_type: "local",
                 firstName: firstName,
                 displayName: "",
                 lastName: lastName,
                 role: "User",
                 email: email,
                 active: false,
-                password: password,
+                password: encrypt.encrypt(password),
                 createdAt: new Date(),
                 modifiedAt: new Date(),
                 activationLink: req.param("root") + "/account/activate/",
@@ -434,22 +430,7 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
                   res.json("Link expired");
                   res.end();
                 } else {
-                  req.logIn(doc, err => {
-                    doc.modifiedAt = new Date();
-                    doc.modifiedAt = new Date();
-                    doc.activationLinkExpired = true;
-                    doc.active = true;
-                    doc
-                      .save()
-                      .then(_ => {
-                        res.json("Success");
-                        res.end();
-                      })
-                      .catch(err => {
-                        res.json(err);
-                        res.end();
-                      });
-                  });
+                  res.render('account/activate.html', { token: res.locals.csrfToken, email: doc.email })
                 }
               }
             }
@@ -457,6 +438,61 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
           .catch(err => {
             res.json(error);
             res.end();
+          });
+      });
+
+      app.post("/account/activate/:id", function (req, res, next) {
+        var id = req.param("id");
+        var email = req.body.email;
+        var password = req.body.password;
+
+        if (!email || !password) {
+          res.render("account/activate.html", { token: res.locals.csrfToken, email: email || '' });
+          return;
+        }
+
+        USER.findOne({ _id: id })
+          .then(doc => {
+            if (!doc) {
+              res.render("account/activate.html", { token: res.locals.csrfToken, email: email || '', errorMessage: 'Acctivation failed' });
+              return;
+            }
+            if (doc.activationLinkExpired || doc.active) {
+              res.render("account/activate.html", { token: res.locals.csrfToken, email: email || '', errorMessage: 'Acctivation failed' });
+              return;
+            } else {
+              var expdate = moment(
+                doc.activationLinkExpiredDate,
+                "MM/DD/YYYY"
+              );
+              var diff = expdate.diff(moment(), "days", true);
+              if (diff <= 0) {
+                res.render("account/activate.html", { token: res.locals.csrfToken, email: email || '', errorMessage: 'Acctivation failed' });
+                return;
+              }
+              else {
+                req.logIn(doc, err => {
+                  doc.modifiedAt = new Date();
+                  doc.modifiedAt = new Date();
+                  doc.activationLinkExpired = true;
+                  doc.active = true;
+                  doc
+                    .save()
+                    .then(_ => {
+                      res.redirect('admin/users.html');
+                      res.end();
+                    })
+                    .catch(err => {
+                      res.render("account/activate.html", { token: res.locals.csrfToken, email: email || '', errorMessage: 'Acctivation failed' });
+                      return;
+                    });
+                });
+              }
+            }
+          })
+          .catch(err => {
+            res.render("account/activate.html", { token: res.locals.csrfToken, email: email || '', errorMessage: 'Acctivation failed' });
+            return;
           });
       });
 
@@ -525,7 +561,10 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
             if (err) {
               return next(err);
             }
-            return res.redirect("/index");
+            if (user.role == 'Admin')
+              return res.redirect("/users");
+            else
+              return res.redirect("/index");
           });
         })(req, res, next);
       });
@@ -548,6 +587,16 @@ Promise.all([MONGODATABSE.connectFunc(bluebird), REDISDATABSE(bluebird)])
         }).catch(err => {
           res.sendStatus(200)
         });
+      });
+
+      app.use(function (req, res, next) {
+        if (res.headersSent) {
+          return next(err);
+        }
+        else {
+          res.status(500)
+          res.render('error', { error: err })
+        }
       });
 
       var port = process.env.PORT || 8080;

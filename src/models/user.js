@@ -3,7 +3,7 @@ module.exports = function UserSchema(mongoose) {
     var schema = new mongoose.Schema({
         //id: { tpye: String, required: true },
         provider_id: { type: String, required: false },
-        provider_type: { type: String, enum: ['facebook', 'google'], required: false },
+        provider_type: { type: String, enum: ['facebook', 'google', 'local'], required: false },
         firstName: String,
         middleName: String,
         displayName: String,
