@@ -3,11 +3,9 @@ let gulp = require('gulp')
 let babel = require("gulp-babel");
 
 gulp.task('default', function () {
-    gulp.src(['src/components/**/*.js', 'src/components/**/*.jsx', 'dist/**/*.js'])
+    gulp.src(['src/**/*.js'])
         .pipe(babel({
-            //babelrc: false,
-            //presets: ['env', 'react'],
-
+            babelrc: true
         }))
         .pipe(gulp.dest('dist'))
 });

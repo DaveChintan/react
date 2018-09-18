@@ -5,11 +5,11 @@ var mongoose = require("mongoose");
 mongoose.Promise = bluebird;
 
 
-
 module.exports = {
   database: mongoose,
   connectFunc: function MONGODATABSE(bluebird) {
-    return new Promise((resolve, reject) => {
+    bluebird.promisifyAll(mongoose);
+    return new bluebird.Promise((resolve, reject) => {
       mongoose.connect(config.DB.MONGO.URL)
       .catch(err => reject(err));
       var db = mongoose.connection;

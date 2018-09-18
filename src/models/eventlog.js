@@ -1,7 +1,6 @@
-//var mongoose = require('mongoose');
-module.exports = function UserSchema(mongoose) {
+var mongoose = require('mongoose');
+module.exports = function UserSchema() {
     var schema = new mongoose.Schema({
-        //id: { tpye: String, required: true },
         provider_id: { type: String, required: false },
         provider_type: { type: String, enum: ['facebook', 'google', 'local'], required: false },
         firstName: String,
@@ -29,7 +28,6 @@ module.exports = function UserSchema(mongoose) {
         this.update({}, { $set: { modifiedAt: new Date() } });
     });
 
-
     schema.statics.findByEmail = function (email, cb) {
         user.findOne({ email: email }).then(a => {
             console.log(a);
@@ -43,19 +41,6 @@ module.exports = function UserSchema(mongoose) {
     schema.statics.GetActive = function (payload) {
         this.find(payload).select({ active: true }).exec()
             .then(docs => docs.map(d => d.toObject())).catch(err => new Error(err));
-    }
-
-    schema.statics.GetById = function (payload) {
-        return new Promise((resolve, reject) => {
-            this.find(payload, (err, res) => {
-                if (err)
-                    reject(err);
-                else
-                    resolve(res.map(d => d.toObject()));
-                // .then(docs => docs.map(d => d.toObject())).catch(err => new Error(err));
-            });
-        });
-
     }
 
     schema.statics.GetAll = function (payload, projection) {
