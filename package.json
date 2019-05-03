@@ -1,0 +1,20 @@
+{
+  "name": "outlook",
+  "version": "1.0.0",
+  "description": "First React App",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DaveChintan/react.git"
+  },
+  "author": "Chintan Dave",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DaveChintan/react/issues"
+  },
+  "homepage": "https://github.com/DaveChintan/react#readme"
+}
