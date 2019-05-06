@@ -5,11 +5,9 @@
   <title>React</title>
 
   <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
-    integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
     crossorigin="anonymous"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
-    integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
     crossorigin="anonymous"></script>
 </head>
 
@@ -19,8 +17,11 @@
   </script>
   <div>{{name}}</div>
   <div>
-    {{#if error}}
-    <div>{{error}}</div>
+    {{#if err}}
+    <div>{{err}}</div>
+    <script type="text/javascript">
+      window.postMessage({ success: false, err: err });
+    </script>
   </div>
   {{/if}}
 
@@ -30,6 +31,7 @@
     var token = '{{token}}';
     window.authenticated = true;
     window.token = token;
+    window.postMessage({ success: true, token: token });
   </script>
   <a href="/logout">Sign OUT</a>
   {{else}}
@@ -42,8 +44,8 @@
   <a href="/login">Sign iN</a>
   {{/if}}
   <script type="text/javascript">
-    
-    if (window.authenticated) {
+
+    /*if (window.authenticated) {
       var url = window.location.href + 'mail';
       var deferred = $.ajax(url, {
         headers: { 'Authorization': 'Bearer ' + window.token },
@@ -56,7 +58,7 @@
       deferred.done((err) => {
         alert(err);
       });
-    }
+    }*/
   </script>
 </body>
 
