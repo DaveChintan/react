@@ -67,3 +67,6 @@ typings/
 dist/
 61561976_localhost.cert
 61561976_localhost.key
+localhost.cert
+localhost.key
+localhost.key
