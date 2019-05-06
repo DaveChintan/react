@@ -28,12 +28,7 @@
 
   {{#if token}}
   <div>{{token}}</div>
-  <script type="text/javascript">
-    var token = '{{token}}';
-    window.authenticated = true;
-    window.token = token;
-    window.postMessage({ success: true, token: token });
-  </script>
+
   <a href="/logout">Sign OUT</a>
   {{else}}
   <form method="post" action="/login">
@@ -44,6 +39,14 @@
   </form>
   <a href="/login">Sign iN</a>
   {{/if}}
+  <script type="text/javascript">
+    var token = '{{token}}';
+    if (token) {
+      window.authenticated = true;
+      window.token = token;
+      window.postMessage({ success: true, token: token });
+    }
+  </script>
   <script type="text/javascript">
 
     /*if (window.authenticated) {
