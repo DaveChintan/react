@@ -41,7 +41,9 @@
   {{/if}}
   <script type="text/javascript">
     var token = '{{token}}';
+    alert(token);
     if (token) {
+      alert(token);
       window.authenticated = true;
       window.token = token;
       window.postMessage({ success: true, token: token });
