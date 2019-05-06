@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "repository": {
     "type": "git",
@@ -21,15 +22,19 @@
     "@microsoft/microsoft-graph-client": "^1.6.0",
     "axios": "^0.18.0",
     "body-parser": "^1.19.0",
+    "dotenv": "^8.0.0",
     "ejs": "^2.6.1",
     "ejs-locals": "^1.0.2",
     "express": "^4.16.4",
     "express-session": "^1.16.1",
     "hbs": "^4.0.4",
     "jsonwebtoken": "^8.5.1",
+    "nodemon": "^1.19.0",
     "passport": "^0.4.0",
     "passport-azure-ad": "^4.0.0",
+    "passport-http-bearer": "^1.0.1",
     "passport-jwt": "^4.0.0",
+    "redis": "^2.8.0",
     "simple-oauth2": "^2.2.1"
   }
 }
