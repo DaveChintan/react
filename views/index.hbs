@@ -21,7 +21,7 @@
     {{#if err}}
     <div>{{err}}</div>
     <script type="text/javascript">
-      window.postMessage({ success: false, err: err });
+      window.postMessage(JSON.stringify({ success: false, err: err }));
     </script>
   </div>
   {{/if}}
