@@ -37,6 +37,14 @@ module.exports = {
       .get();
 
     return messages;
+  },
+
+  updateMessage: async (accessToken, body) => {
+    const client = getAuthenticatedClient(accessToken);
+
+    const result = await client.api("/me/messages/" + id).patch(body);
+
+    return result;
   }
 };
 

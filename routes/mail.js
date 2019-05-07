@@ -44,4 +44,21 @@ router.get(
   }
 );
 
+router.patch(
+  "/:id",
+  passport.authenticate("bearer", { session: false }),
+  async (req, res, next) => {
+    const token = req.user;
+    const body = JSON.parse(req.body);
+    graph
+      .updateMessage(token, body)
+      .then(result => {
+        res.json({ success: true, data: result });
+      })
+      .catch(err => {
+        res.json({ success: true, data: err });
+      });
+  }
+);
+
 module.exports = router;
