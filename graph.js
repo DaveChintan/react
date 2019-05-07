@@ -1,22 +1,29 @@
-var graph = require('@microsoft/microsoft-graph-client');
+var graph = require("@microsoft/microsoft-graph-client");
 module.exports = {
   getUserDetails: async accessToken => {
     const client = getAuthenticatedClient(accessToken);
 
-    const user = await client.api('/me').get();
+    const user = await client.api("/me").get();
     return user;
   },
 
-  getMessages: async accessToken => {
+  getMessages: async (accessToken, query) => {
     const client = getAuthenticatedClient(accessToken);
-
-    const messages = await client
-      .api('/me/messages')
-      .select('sender,subject')
-      .orderby('createdDateTime DESC')
-      .count(true)
-      .get();
-
+    let messages;
+    if (!query) {
+      messages = await client
+        .api("/me/messages")
+        .select("id,sender,subject,bodyPreview,isRead")
+        .orderby("createdDateTime DESC")
+        .count(true)
+        .top(10)
+        .get();
+    } else {
+      messages = await client
+        .api(query)
+        .orderby("createdDateTime DESC")
+        .get();
+    }
     return messages;
   }
 };
@@ -26,7 +33,7 @@ function getAuthenticatedClient(accessToken) {
   const client = graph.Client.init({
     // Use the provided access token to authenticate
     // requests
-    authProvider: (done) => {
+    authProvider: done => {
       done(null, accessToken);
     }
   });
