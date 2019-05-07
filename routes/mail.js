@@ -49,9 +49,10 @@ router.patch(
   passport.authenticate("bearer", { session: false }),
   async (req, res, next) => {
     const token = req.user;
-    const body = JSON.parse(req.body);
+    const body = req.body;
+    let id = req.param("id", "0");
     graph
-      .updateMessage(token, body)
+      .updateMessage(token, id, body)
       .then(result => {
         res.json({ success: true, data: result });
       })

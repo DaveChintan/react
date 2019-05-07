@@ -39,10 +39,12 @@ module.exports = {
     return messages;
   },
 
-  updateMessage: async (accessToken, body) => {
+  updateMessage: async (accessToken, id, body) => {
     const client = getAuthenticatedClient(accessToken);
 
-    const result = await client.api("/me/messages/" + id).patch(body);
+    const result = await client
+      .api("/me/messages/" + id)
+      .patch(JSON.stringify(body));
 
     return result;
   }
