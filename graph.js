@@ -33,7 +33,7 @@ module.exports = {
 
     messages = await client
       .api("/me/messages/" + id)
-      .select("id,sender,subject,bodyPreview,isRead")
+      .select("id,sender,subject,bodyPreview,isRead,body")
       .get();
 
     return messages;
