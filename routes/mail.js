@@ -27,4 +27,21 @@ router.post(
   }
 );
 
+router.get(
+  "/:id",
+  passport.authenticate("bearer", { session: false }),
+  async (req, res, next) => {
+    const token = req.user;
+    let id = req.param("id", "0");
+    graph
+      .getMessage(token, id)
+      .then(messages => {
+        res.json({ success: true, data: messages });
+      })
+      .catch(err => {
+        res.json({ success: true, data: err });
+      });
+  }
+);
+
 module.exports = router;

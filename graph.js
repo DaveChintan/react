@@ -25,6 +25,18 @@ module.exports = {
         .get();
     }
     return messages;
+  },
+
+  getMessage: async (accessToken, id) => {
+    const client = getAuthenticatedClient(accessToken);
+    let messages;
+
+    messages = await client
+      .api("/me/messages/" + id)
+      .select("id,sender,subject,bodyPreview,isRead")
+      .get();
+
+    return messages;
   }
 };
 
