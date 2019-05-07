@@ -1,7 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const graph = require('../graph');
-const passport = require('passport');
+const graph = require("../graph");
+const passport = require("passport");
 
 // router.use(function (req, res, next) {
 //     passport.authenticate('bearer'), function (req, res) {
@@ -9,14 +9,22 @@ const passport = require('passport');
 //     }
 // });
 
-router.get('/', passport.authenticate('bearer', { session: false }), async (req, res, next) => {
+router.post(
+  "/",
+  passport.authenticate("bearer", { session: false }),
+  async (req, res, next) => {
+    let query = req.body.query;
     const token = req.user;
-    graph.getMessages(token).then(messages => { 
+    //let query = req.param("query");
+    graph
+      .getMessages(token, query)
+      .then(messages => {
         res.json({ success: true, data: messages });
-    }).catch(err => {
+      })
+      .catch(err => {
         res.json({ success: true, data: err });
-    });
-    
-});
+      });
+  }
+);
 
 module.exports = router;

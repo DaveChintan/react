@@ -173,6 +173,8 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+app.set("view engine", "html");
+app.engine("html", require("hbs").__express);
 var Handlebars = require("hbs");
 Handlebars.registerHelper("json", context => JSON.stringify(context));
 
@@ -215,7 +217,10 @@ app.post("/login", function(req, res, next) {
         const user = JSON.parse(reply);
         res.locals.user = user.profile;
         res.locals.token = user.oauthToken.token.access_token;
-        res.render("index");
+        req.logIn(user, err => {
+          req.session.user = user;
+          res.redirect("/");
+        });
       }
     });
   }
@@ -289,7 +294,15 @@ process.on("SIGTERM", cleanup);
 
 var port = process.env.PORT || 3000;
 if (!isProduction) {
-  http.createServer(app).listen(port);
+  https
+    .createServer(
+      {
+        cert: fs.readFileSync("localhost.cert"),
+        key: fs.readFileSync("localhost.key")
+      },
+      app
+    )
+    .listen(port);
 } else {
   http.createServer(app).listen(port);
 }

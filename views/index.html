@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>React</title>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+      integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
+      integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+
+  <body>
+    <script type="text/javascript">
+      window.authenticated = false;
+      //window.postMessage('hello');
+    </script>
+    <div>{{ name }}</div>
+    <div>
+      {{#if err}}
+      <div>{{ err }}</div>
+      <script type="text/javascript">
+        window.postMessage(JSON.stringify({ success: false, err: err }));
+      </script>
+    </div>
+    {{/if}}
+
+    {{#if token}}
+    <div>{{ token }}</div>
+
+    <a href="/logout">Sign OUT</a>
+    {{else}}
+    <form method="post" action="/login">
+      <span>Email</span>
+      <input type="text" name="email" />
+      <br />
+      <input type="submit" value="Sign In" />
+    </form>
+    <a href="/login">Sign iN</a>
+    {{/if}}
+    <script type="text/javascript">
+      var token = "{{token}}";
+      if (token) {
+        window.authenticated = true;
+        window.token = token;
+        window.postMessage({ success: true, token: token });
+      }
+    </script>
+    <script type="text/javascript">
+      if (window.authenticated) {
+        getEmail();
+      }
+      var counter = 0;
+
+      function getEmail(query) {
+        if (!query) {
+          var url = window.location.href + "mail";
+          var deferred = $.ajax(url, {
+            headers: { Authorization: "Bearer " + window.token },
+            dataType: "json",
+            method: "post",
+            'Content-Type': 'application/x-www-form-urlencoded',
+            data: 'query='
+          });
+          deferred.done(res => {
+            debugger;
+            if (res) {
+              if (res.data.value.length > 0) {
+                if (res.data["@odata.nextLink"]) {
+                  counter++;
+                  if (counter <= 1) {
+                    getEmail(encodeURIComponent(res.data["@odata.nextLink"]));
+                  }
+                }
+              }
+            }
+          });
+          deferred.fail(err => {
+            alert(err);
+          });
+        } else {
+          var url = window.location.href + "mail";
+          var deferred = $.ajax(url, {
+            headers: { Authorization: "Bearer " + window.token },
+            dataType: "json",
+            method: "post",
+            'Content-Type': 'application/x-www-form-urlencoded',
+            data: 'query=' + query
+          });
+          deferred.done(res => {
+            debugger;
+            if (res) {
+              if (res.data.value.length > 0) {
+                if (res.data["@odata.nextLink"]) {
+                  counter++;
+                  if (counter <= 1) {
+                    var newUrl = encodeURIComponent(res.data["@odata.nextLink"]);
+                    getEmail(newUrl);
+                  }
+                }
+              }
+            }
+          });
+          deferred.fail(err => {
+            alert(err);
+          });
+        }
+      }
+    </script>
+  </body>
+</html>
