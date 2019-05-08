@@ -22,7 +22,24 @@ router.post(
         res.json({ success: true, data: messages });
       })
       .catch(err => {
-        res.json({ success: true, data: err });
+        res.json({ success: false, data: err });
+      });
+  }
+);
+
+router.get(
+  "/folders",
+  passport.authenticate("bearer", { session: false }),
+  async (req, res, next) => {
+    const token = req.user;
+    let id = req.param("id", "0");
+    graph
+      .getMailFolders(token)
+      .then(folders => {
+        res.json({ success: true, data: folders });
+      })
+      .catch(err => {
+        res.json({ success: false, data: err });
       });
   }
 );
@@ -39,7 +56,7 @@ router.get(
         res.json({ success: true, data: messages });
       })
       .catch(err => {
-        res.json({ success: true, data: err });
+        res.json({ success: false, data: err });
       });
   }
 );
@@ -57,7 +74,7 @@ router.patch(
         res.json({ success: true, data: result });
       })
       .catch(err => {
-        res.json({ success: true, data: err });
+        res.json({ success: false, data: err });
       });
   }
 );

@@ -7,6 +7,33 @@ module.exports = {
     return user;
   },
 
+  getMailFolders: async (accessToken, query) => {
+    const client = getAuthenticatedClient(accessToken);
+    let items = [];
+
+    let folders;
+    if (!query) {
+      folders = await client
+        .api("/me/mailFolders")
+        .count(true)
+        .top(20)
+        .get();
+    } else {
+      folders = await client.api(query).get();
+    }
+
+    const iter = new graph.PageIterator(client, folders, data => {
+      if (data) {
+        items.push(data);
+        return true;
+      }
+      return false;
+    });
+    return iter.iterate().then(res => {
+      return items;
+    });
+  },
+
   getMessages: async (accessToken, query) => {
     const client = getAuthenticatedClient(accessToken);
     let messages;
