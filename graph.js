@@ -34,6 +34,27 @@ module.exports = {
     });
   },
 
+  getFoldersMessages: async (accessToken, id, query) => {
+    const client = getAuthenticatedClient(accessToken);
+    let messages;
+    if (!query) {
+      var url = `/me/mailFolders/${id}/messages`;
+      messages = await client
+        .api(url)
+        .count(true)
+        .top(20)
+        .orderby("createdDateTime DESC")
+        .get();
+    } else {
+      messages = await client
+        .api(query)
+        .orderby("createdDateTime DESC")
+        .get();
+    }
+
+    return messages;
+  },
+
   getMessages: async (accessToken, query) => {
     const client = getAuthenticatedClient(accessToken);
     let messages;

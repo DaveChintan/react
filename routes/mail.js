@@ -44,6 +44,24 @@ router.get(
   }
 );
 
+router.post(
+  "/byfolder/:id",
+  passport.authenticate("bearer", { session: false }),
+  async (req, res, next) => {
+    const token = req.user;
+    let id = req.param("id", "");
+    let query = req.body.query;
+    graph
+      .getFoldersMessages(token, id, query)
+      .then(messages => {
+        res.json({ success: true, data: messages });
+      })
+      .catch(err => {
+        res.json({ success: false, data: err });
+      });
+  }
+);
+
 router.get(
   "/:id",
   passport.authenticate("bearer", { session: false }),
