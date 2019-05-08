@@ -41,15 +41,10 @@ module.exports = {
       var url = `/me/mailFolders/${id}/messages`;
       messages = await client
         .api(url)
-        .count(true)
-        .top(20)
-        .orderby("createdDateTime DESC")
+        .top(5)
         .get();
     } else {
-      messages = await client
-        .api(query)
-        .orderby("createdDateTime DESC")
-        .get();
+      messages = await client.api(query).get();
     }
 
     return messages;
