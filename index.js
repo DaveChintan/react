@@ -181,6 +181,8 @@ Handlebars.registerHelper("json", context => JSON.stringify(context));
 app.use(function(req, res, next) {
   // Set the authenticated user in the
   // template locals
+  req.oauth2 = oauth2;
+  req.client = client;
   if (req.session && req.session.user) {
     res.locals.user = req.session.user.profile;
     res.locals.token = req.session.user.oauthToken.token.access_token;
