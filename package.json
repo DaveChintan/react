@@ -8,7 +8,6 @@
     "tsc" : "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rimraf dist/**/*.js",
-    //"build": "node_modules/.bin/gulp default",
     "b": "babel index.js --out-file build.js",
     "w": "webpack"
   },
