@@ -7,6 +7,7 @@
     "start": "node index.js",
     "tsc" : "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node_modules/.bin/gulp default",
     "clean": "rimraf dist/**/*.js",
     "b": "babel index.js --out-file build.js",
     "w": "webpack"
