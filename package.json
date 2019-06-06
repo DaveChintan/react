@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "First GitHub",
   "main": "index.js",
+  "engines" : { "node" : "10.13.0" },
   "scripts": {
     "start": "node index.js",
     "tsc" : "tsc",
